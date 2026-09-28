@@ -1,0 +1,28 @@
+<h1>Search pros</h1>
+<form class="search-form" action="/search" method="get">
+  <input type="search" name="q" value="<%= q || '' %>" placeholder="Try &quot;cleaning&quot;, &quot;tint&quot;, &quot;DJ&quot;…" aria-label="Search">
+  <button class="btn" type="submit">Search</button>
+</form>
+
+<% if (typeof q !== 'undefined' && q) { %>
+  <section>
+    <h2><%= pros.length %> found</h2>
+    <div class="pro-list">
+      <% pros.forEach(function (p) { %>
+        <a class="card pro-card" href="/pro/<%= p.id %>">
+          <h3><%= p.business_name %></h3>
+          <% if (p.rating_count) { %>
+            <p class="rating-line">&#9733; <%= p.rating_average %> · <%= p.rating_count %> review<%= p.rating_count === 1 ? '' : 's' %></p>
+          <% } else { %>
+            <p class="muted small">No reviews yet</p>
+          <% } %>
+          <% if (p.service_area) { %><p class="muted">Works in: <%= p.service_area %></p><% } %>
+          <span class="see-more">See what they do &rarr;</span>
+        </a>
+      <% }); %>
+    </div>
+    <% if (!pros.length) { %>
+      <p class="muted">Nothing found for "<%= q %>". Try a different word.</p>
+    <% } %>
+  </section>
+<% } %>
