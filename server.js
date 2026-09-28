@@ -42,8 +42,17 @@ app.use((req, res, next) => {
   const user = auth.currentUser(req);
   res.locals.user = user;
   res.locals.proTier = null;
-  if (user && user.role === 'pro') {
-    res.locals.proTier = billing.getTier(auth.currentPro(req));
+  res.locals.unreadCount = 0;
+  res.locals.isAdmin = false;
+  const adminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  if (user) {
+    if (user.email && user.email.toLowerCase() === adminEmail && adminEmail) res.locals.isAdmin = true;
+    if (user.role === 'pro') {
+      res.locals.proTier = billing.getTier(auth.currentPro(req));
+    }
+    try {
+      res.locals.unreadCount = require('./lib/notify').unreadCount(user.id);
+    } catch (e) { /* notifications table not ready yet */ }
   }
   next();
 });
@@ -64,7 +73,17 @@ app.get('/dashboard', auth.requireLogin, (req, res) => {
       status: r.status,
       pro_name: r.business_name
     }));
-    return res.render('dashboard', { pageTitle: 'My jobs', myRequests });
+    const promo = require('./lib/promo');
+    const custLocals = {
+      pageTitle: 'My jobs',
+      myRequests,
+      credit_cents: promo.creditForCustomer(user.id),
+      promo_error: req.query.promo_error || req.session.promo_error || null,
+      promo_ok: req.query.promo_ok || (req.session.promo_ok ? 'Promo code applied.' : null)
+    };
+    delete req.session.promo_error;
+    delete req.session.promo_ok;
+    return res.render('dashboard', custLocals);
   }
   const pro = auth.currentPro(req);
   const inbox = db.prepare(
@@ -73,31 +92,97 @@ app.get('/dashboard', auth.requireLogin, (req, res) => {
      JOIN categories c ON c.id = r.category_id
      WHERE r.pro_id = ? ORDER BY r.created_at DESC LIMIT 20`
   ).all(pro.id);
-  res.render('dashboard', {
+  const dashLocals = {
     pageTitle: 'New jobs',
     inbox,
     pro,
-    proTier: billing.getTier(pro)
+    proTier: billing.getTier(pro),
+    hasCard: billing.hasCardOnFile(pro.id),
+    trialDays: billing.trialDaysLeft(pro),
+    isPartner: !!pro.is_partner,
+    promo_error: req.query.promo_error || req.session.promo_error || null,
+    promo_ok: req.query.promo_ok || (req.session.promo_ok ? 'Promo code applied.' : null)
+  };
+  delete req.session.promo_error;
+  delete req.session.promo_ok;
+  res.render('dashboard', dashLocals);
+});
+
+// --- Notifications (the bell) ---
+app.get('/notifications', auth.requireLogin, (req, res) => {
+  const user = auth.currentUser(req);
+  const notify = require('./lib/notify');
+  const items = notify.listFor(user.id, 40);
+  notify.markAllRead(user.id);
+  res.render('notifications', {
+    pageTitle: 'Notifications',
+    items,
+    emailNote: notify.emailStatusNote()
   });
 });
 
-// --- Billing stub page ---
+// --- Billing: plan, card on file, promo codes, fee history ---
 app.get('/billing', auth.requireLogin, (req, res) => {
   const user = auth.currentUser(req);
   const pro = user.role === 'pro' ? auth.currentPro(req) : null;
   const tier = billing.getTier(pro);
+  const commission = require('./lib/commission');
+  const promo = require('./lib/promo');
   res.render('billing', {
     pageTitle: 'Billing',
     tier,
+    isPartner: !!pro && !!pro.is_partner,
+    trialDays: pro ? billing.trialDaysLeft(pro) : 0,
     planName: billing.planName(),
     planPrice: billing.planPrice(),
+    rateWords: billing.commissionRateWords(tier),
     canBook: billing.canUse('booking', tier),
-    canInvoice: billing.canUse('invoicing', tier)
+    canInvoice: billing.canUse('invoicing', tier),
+    hasCard: pro ? billing.hasCardOnFile(pro.id) : false,
+    card: pro ? billing.cardOnFile(pro.id) : null,
+    stripeReady: billing.stripeConfigured(),
+    commissions: pro ? commission.historyForPro(pro.id).map((c) => Object.assign({}, c, {
+      words: commission.statusWords(c)
+    })) : [],
+    waivers: pro ? promo.waiversForPro(pro.id) : [],
+    promo_error: req.query.promo_error || null,
+    promo_ok: req.query.promo_ok || null
   });
+});
+
+// Save a card on file. Demo mode (no Stripe key) saves a clearly-labeled
+// DEMO card so the whole flow works without charging anyone, ever.
+app.post('/billing/card', auth.requireLogin, auth.requireRole('pro'), (req, res) => {
+  const pro = auth.currentPro(req);
+  if (billing.stripeConfigured()) {
+    billing.createSetupIntent(pro.id);
+    // Real wiring would confirm the SetupIntent on the client first.
+  }
+  billing.saveDemoCard(pro.id);
+  res.redirect('/billing');
+});
+
+// Pros redeem promo codes here (Pro trials, no-fee jobs, partner access).
+app.post('/billing/promo', auth.requireLogin, auth.requireRole('pro'), (req, res) => {
+  const user = auth.currentUser(req);
+  const promo = require('./lib/promo');
+  const notify = require('./lib/notify');
+  const v = promo.validate(req.body.code, user.id);
+  if (!v.ok) {
+    return res.redirect('/billing?promo_error=' + encodeURIComponent(v.reason));
+  }
+  try {
+    const result = promo.redeem(req.body.code, user);
+    notify.notify(user.id, 'promo_redeemed', 'Promo code used: ' + result.code.code, result.effect, '/billing');
+    res.redirect('/billing?promo_ok=' + encodeURIComponent(result.effect));
+  } catch (e) {
+    res.redirect('/billing?promo_error=' + encodeURIComponent(e.message));
+  }
 });
 
 // --- Route mounting (pro router before public so /pro/services etc. win over /pro/:id) ---
 app.use('/', require('./routes/auth'));
+app.use('/', require('./routes/admin'));
 app.use('/', require('./routes/pro'));
 app.use('/', require('./routes/customer'));
 app.use('/', require('./routes/requests'));
