@@ -1,10 +1,20 @@
 <%
 const statusWords = { new: 'New', estimate_sent: 'Price sent', accepted: 'Accepted', declined: 'Not going ahead', booked: 'Day and time picked', completed: 'Done', cancelled: 'Cancelled' };
+const money = function (cents) { return '$' + (Number(cents || 0) / 100).toFixed(2); };
 %>
 <h1>Dashboard</h1>
 <p class="lede">Hi, <%= user.name %>.</p>
 
+<% if (typeof promo_error !== 'undefined' && promo_error) { %><p class="error"><%= promo_error %></p><% } %>
+<% if (typeof promo_ok !== 'undefined' && promo_ok) { %><p class="success"><%= promo_ok %></p><% } %>
+
 <% if (user.role === 'customer') { %>
+  <% if (typeof credit_cents !== 'undefined' && credit_cents > 0) { %>
+    <section class="card callout">
+      <h2>Your credit: <%= money(credit_cents) %></h2>
+      <p class="muted small">From a promo code. It will count toward your bookings (display only for now).</p>
+    </section>
+  <% } %>
   <section>
     <h2>My jobs</h2>
     <div class="pro-list">
@@ -21,10 +31,31 @@ const statusWords = { new: 'New', estimate_sent: 'Price sent', accepted: 'Accept
       <p class="muted">You have no jobs yet. <a href="/">Find someone to help you</a>.</p>
     <% } %>
   </section>
+  <section class="card">
+    <h2>Promo code</h2>
+    <form class="form form-inline" action="/account/promo" method="post">
+      <label>Have a code? Type it here
+        <input type="text" name="code" placeholder="WELCOME10" style="text-transform:uppercase">
+      </label>
+      <button class="btn btn-secondary" type="submit">Use code</button>
+    </form>
+  </section>
 <% } else { %>
+  <% if (!(typeof hasCard !== 'undefined' && hasCard)) { %>
+    <section class="card callout callout-warn">
+      <h2>Add a card to get jobs</h2>
+      <p>You cannot receive new job requests until you have a card on file. <a href="/billing">Add one now</a>.</p>
+    </section>
+  <% } %>
   <section>
     <h2>Your plan</h2>
-    <p><span class="tier-badge <%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'tier-pro' : 'tier-free' %>"><%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'Pro' : 'Free' %></span></p>
+    <p><span class="tier-badge <%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'tier-pro' : 'tier-free' %>"><%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'Pro' : 'Free' %></span>
+    <% if (typeof isPartner !== 'undefined' && isPartner) { %> <span class="tier-badge tier-partner">Partner</span><% } %></p>
+    <% if (typeof isPartner !== 'undefined' && isPartner) { %>
+      <p class="muted">Partner access: Pro forever, no fees on any job.</p>
+    <% } else if (typeof trialDays !== 'undefined' && trialDays > 0) { %>
+      <p class="muted"><%= trialDays %> free Pro day<%= trialDays === 1 ? '' : 's' %> left.</p>
+    <% } %>
     <% if (!(typeof proTier !== 'undefined' && proTier === 'pro')) { %>
       <p class="muted">The Pro plan ($39/month) unlocks booking days and sending bills. <a href="/billing">See the Pro plan</a></p>
     <% } %>
@@ -54,7 +85,7 @@ const statusWords = { new: 'New', estimate_sent: 'Price sent', accepted: 'Accept
       <a href="/pro/profile/edit">Edit your profile and photos</a>
       <a href="/pro/services">Your services</a>
       <a href="/pro/inbox">New jobs inbox</a>
-      <a href="/billing">Billing and your plan</a>
+      <a href="/billing">Billing, fees, and promo codes</a>
     </div>
   </section>
 <% } %>
