@@ -1,0 +1,36 @@
+<section class="hero">
+  <h1>Find someone to help you</h1>
+  <p class="lede">Real local pros for your home, your car, and your party. Pick what you need, ask for help, and get a clear price.</p>
+  <% if (!(typeof user !== 'undefined' && user)) { %>
+    <p><a class="btn btn-gold" href="/signup">Get started — it is free</a></p>
+  <% } %>
+</section>
+
+<section>
+  <h2>What do you need?</h2>
+  <div class="category-grid">
+    <% (categories || []).forEach(function (c) { %>
+      <a class="category-card" href="/c/<%= c.id %>">
+        <span class="category-icon" aria-hidden="true"><%= c.icon %></span>
+        <span class="category-name"><%= c.name %></span>
+        <span class="category-desc"><%= c.plain_description %></span>
+      </a>
+    <% }); %>
+  </div>
+</section>
+
+<section>
+  <h2>Pros people like</h2>
+  <div class="pro-list">
+    <% (featuredPros || []).forEach(function (p) { %>
+      <a class="card pro-card" href="/pro/<%= p.id %>">
+        <h3><%= p.business_name %></h3>
+        <% if (p.service_area) { %><p class="muted">Works in: <%= p.service_area %></p><% } %>
+        <span class="see-more">See what they do &rarr;</span>
+      </a>
+    <% }); %>
+  </div>
+  <% if (!(featuredPros && featuredPros.length)) { %>
+    <p class="muted">No pros to show yet — check back soon.</p>
+  <% } %>
+</section>
