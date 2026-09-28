@@ -1,0 +1,47 @@
+<h1>Make your free account</h1>
+<p class="lede">One account for asking for help or offering it.</p>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <p class="error" role="alert"><%= error %></p>
+<% } %>
+
+<form class="form" action="/signup" method="post">
+  <label>Your name
+    <input type="text" name="name" required autocomplete="name" value="<%= (typeof values !== 'undefined' && values.name) ? values.name : '' %>">
+  </label>
+  <label>Email
+    <input type="email" name="email" required autocomplete="email" value="<%= (typeof values !== 'undefined' && values.email) ? values.email : '' %>">
+  </label>
+  <label>Password
+    <input type="password" name="password" required minlength="6" autocomplete="new-password">
+  </label>
+  <fieldset class="radio-group">
+    <legend>I want to…</legend>
+    <label class="radio"><input type="radio" name="role" value="customer" checked> Get help (Customer)</label>
+    <label class="radio"><input type="radio" name="role" value="pro" <%= (typeof values !== 'undefined' && values.role === 'pro') ? 'checked' : '' %>> Offer help (Pro)</label>
+  </fieldset>
+  <div id="business-name-wrap" style="display:none">
+    <label>Business name
+      <input type="text" name="business_name" value="<%= (typeof values !== 'undefined' && values.business_name) ? values.business_name : '' %>">
+    </label>
+  </div>
+  <label>Phone (optional)
+    <input type="tel" name="phone" autocomplete="tel" value="<%= (typeof values !== 'undefined' && values.phone) ? values.phone : '' %>">
+  </label>
+  <button class="btn" type="submit">Sign up</button>
+</form>
+
+<p class="muted">Already have an account? <a href="/login">Log in</a></p>
+
+<script>
+(function () {
+  var wrap = document.getElementById('business-name-wrap');
+  var radios = document.querySelectorAll('input[name="role"]');
+  function toggle() {
+    var checked = document.querySelector('input[name="role"]:checked');
+    wrap.style.display = (checked && checked.value === 'pro') ? '' : 'none';
+  }
+  for (var i = 0; i < radios.length; i++) { radios[i].addEventListener('change', toggle); }
+  toggle();
+})();
+</script>
