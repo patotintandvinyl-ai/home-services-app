@@ -1,5 +1,10 @@
 <p class="crumbs"><a href="/">&larr; Home</a></p>
 <h1><%= pro.business_name %></h1>
+<% if (typeof rating_count !== 'undefined' && rating_count) { %>
+  <p class="rating-line rating-big"><%= starsText(rating_average) %> <strong><%= rating_average %></strong> · <%= rating_count %> review<%= rating_count === 1 ? '' : 's' %></p>
+<% } else { %>
+  <p class="muted">No reviews yet — be the first to book and review.</p>
+<% } %>
 <p class="meta-line">
   <% if (pro.service_area) { %><span>Works in: <%= pro.service_area %></span><% } %>
   <% if (pro.years_experience) { %><span><%= pro.years_experience %> years of work</span><% } %>
@@ -39,3 +44,17 @@
 <div class="cta-box">
   <a class="btn btn-gold btn-big" href="/request/new?pro=<%= pro.id %>">Ask this pro for help</a>
 </div>
+
+<% if (typeof proReviews !== 'undefined' && proReviews.length) { %>
+  <section>
+    <h2>What customers say</h2>
+    <div class="pro-list">
+      <% proReviews.forEach(function (rv) { %>
+        <div class="card">
+          <p class="rating-line"><%= '★'.repeat(rv.rating) + '☆'.repeat(5 - rv.rating) %> <span class="muted"><%= rv.customer_name %></span></p>
+          <% if (rv.text) { %><p><%= rv.text %></p><% } %>
+        </div>
+      <% }); %>
+    </div>
+  </section>
+<% } %>
