@@ -1,0 +1,50 @@
+<h1>Promo codes</h1>
+<p class="lede">Make codes to bring people in. Blank max = unlimited uses. Blank expiry = never expires.</p>
+
+<% if (typeof error !== 'undefined' && error) { %><p class="error"><%= error %></p><% } %>
+
+<section class="card">
+  <h2>New code</h2>
+  <form class="form" action="/admin/promos" method="post">
+    <label>Code (letters and numbers)
+      <input type="text" name="code" required placeholder="WELCOME10" style="text-transform:uppercase">
+    </label>
+    <label>What it does
+      <select name="kind" required>
+        <% Object.keys(kinds).forEach(function (k) { %>
+          <option value="<%= k %>"><%= kinds[k] %></option>
+        <% }); %>
+      </select>
+    </label>
+    <label>Value
+      <input type="number" name="value" min="0" value="0">
+      <span class="muted small">Free Pro days, number of no-fee jobs, credit in cents (1000 = $10), or 0 for partner.</span>
+    </label>
+    <label>Max uses (blank = unlimited)
+      <input type="number" name="max_redemptions" min="1" placeholder="unlimited">
+    </label>
+    <label>Expires on (blank = never)
+      <input type="date" name="expires_at">
+    </label>
+    <button class="btn" type="submit">Create code</button>
+  </form>
+</section>
+
+<section>
+  <h2>All codes</h2>
+  <div class="pro-list">
+    <% (codes || []).forEach(function (c) { %>
+      <div class="card">
+        <h3><%= c.code %></h3>
+        <p class="muted"><%= c.kind_words %> · used <%= c.redeemed_count %><%= c.max_redemptions ? ' of ' + c.max_redemptions : '' %> · <%= c.active ? 'on' : 'off' %><%= c.expires_at ? ' · expires ' + c.expires_at.slice(0, 10) : '' %></p>
+        <% if (c.redemptions && c.redemptions.length) { %>
+          <p class="muted small">Used by: <%= c.redemptions.map(function (r) { return r.user_name; }).join(', ') %></p>
+        <% } %>
+        <form class="inline-form" action="/admin/promos/<%= c.id %>/toggle" method="post">
+          <button class="btn btn-secondary btn-small" type="submit"><%= c.active ? 'Turn off' : 'Turn on' %></button>
+        </form>
+      </div>
+    <% }); %>
+  </div>
+  <% if (!(codes && codes.length)) { %><p class="muted">No codes yet.</p><% } %>
+</section>
