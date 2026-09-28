@@ -17,7 +17,8 @@ router.post('/signup', (req, res) => {
   const role = req.body.role;
   const phone = (req.body.phone || '').trim();
   const businessName = (req.body.business_name || '').trim();
-  const values = { name, email, role, phone, business_name: businessName };
+  const promoCode = (req.body.promo_code || '').trim();
+  const values = { name, email, role, phone, business_name: businessName, promo_code: promoCode };
 
   let error = null;
   if (!name) error = 'Please tell us your name.';
@@ -46,6 +47,25 @@ router.post('/signup', (req, res) => {
 
   req.session.userId = userId;
   req.session.role = role;
+
+  // Promo code at signup (customers: credit codes; pros: trial/partner codes).
+  if (promoCode) {
+    try {
+      const promo = require('../lib/promo');
+      const user = { id: userId, role, email };
+      const v = promo.validate(promoCode, userId);
+      const kindOk = role === 'customer' ? v.ok && v.code.kind === 'customer_credit' : v.ok;
+      if (kindOk) {
+        promo.redeem(promoCode, user);
+        req.session.promo_ok = true;
+      } else {
+        req.session.promo_error = v.ok ? 'That code is for pros.' : v.reason;
+      }
+    } catch (e) {
+      req.session.promo_error = e.message;
+    }
+  }
+
   res.redirect('/dashboard');
 });
 
