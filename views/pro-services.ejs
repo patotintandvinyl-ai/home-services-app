@@ -1,0 +1,50 @@
+<h1>Your services</h1>
+<p class="lede">List what you can do. People find you through these.</p>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <p class="error" role="alert"><%= error %></p>
+<% } %>
+
+<section>
+  <h2>Your list</h2>
+  <div class="pro-list">
+    <% (services || []).forEach(function (s) { %>
+      <div class="card">
+        <h3><%= s.title %></h3>
+        <% if (s.category_name) { %><p class="muted"><%= s.category_name %></p><% } %>
+        <% if (s.description) { %><p><%= s.description %></p><% } %>
+        <% if (s.price_hint) { %><p class="muted">Starts around <%= s.price_hint %></p><% } %>
+        <form action="/pro/services/<%= s.id %>/delete" method="post">
+          <button class="btn btn-small btn-danger" type="submit">Delete</button>
+        </form>
+      </div>
+    <% }); %>
+  </div>
+  <% if (!(services && services.length)) { %>
+    <p class="muted">You have no services yet. Add your first one below.</p>
+  <% } %>
+</section>
+
+<section>
+  <h2>Add a service</h2>
+  <form class="form" action="/pro/services" method="post">
+    <label>What kind of help is it?
+      <select name="category_id" required>
+        <option value="">Pick one…</option>
+        <% (categories || []).forEach(function (c) { %>
+          <option value="<%= c.id %>"><%= c.name %></option>
+        <% }); %>
+      </select>
+    </label>
+    <label>Title
+      <input type="text" name="title" required maxlength="120" placeholder="Example: Whole home clean">
+    </label>
+    <label>What does it include?
+      <textarea name="description" rows="3"></textarea>
+    </label>
+    <label>Price hint (optional)
+      <input type="text" name="price_hint" placeholder="Example: $129 from">
+    </label>
+    <button class="btn" type="submit">Add service</button>
+  </form>
+</section>
