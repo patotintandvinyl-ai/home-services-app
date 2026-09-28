@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: home-services-app
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run seed && npm start
+    disk:
+      name: marketplace-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /opt/render/project/src/data
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: NODE_VERSION
+        value: 20
