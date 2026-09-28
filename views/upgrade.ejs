@@ -1,0 +1,14 @@
+<h1>That needs the Pro plan</h1>
+<div class="card plan-pitch">
+  <% if (typeof feature !== 'undefined' && feature === 'booking') { %>
+    <p class="lede">Picking a day and time is a Pro thing.</p>
+  <% } else if (typeof feature !== 'undefined' && feature === 'invoicing') { %>
+    <p class="lede">Sending bills is a Pro thing.</p>
+  <% } else { %>
+    <p class="lede">This is a Pro thing.</p>
+  <% } %>
+  <p>The <strong>Pro plan is $39/month</strong>. With it you can pick days and times for jobs and send bills, all in one place.</p>
+  <p>You can still make prices and message your customers on the free plan.</p>
+  <a class="btn btn-gold" href="/billing">See the Pro plan</a>
+  <p class="muted"><a href="/dashboard">Back to dashboard</a></p>
+</div>
