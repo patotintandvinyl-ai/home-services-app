@@ -1,8 +1,21 @@
+<%
+const money = function (cents) { return '$' + (Number(cents || 0) / 100).toFixed(2); };
+%>
 <h1>Billing</h1>
 
-<section>
+<% if (typeof promo_error !== 'undefined' && promo_error) { %><p class="error"><%= promo_error %></p><% } %>
+<% if (typeof promo_ok !== 'undefined' && promo_ok) { %><p class="success"><%= promo_ok %></p><% } %>
+
+<section class="card">
   <h2>Your plan right now</h2>
-  <p><span class="tier-badge <%= tier === 'pro' ? 'tier-pro' : 'tier-free' %>"><%= tier === 'pro' ? 'Pro' : 'Free' %></span></p>
+  <p><span class="tier-badge <%= tier === 'pro' ? 'tier-pro' : 'tier-free' %>"><%= tier === 'pro' ? 'Pro' : 'Free' %></span>
+  <% if (typeof isPartner !== 'undefined' && isPartner) { %> <span class="tier-badge tier-partner">Partner</span><% } %></p>
+  <% if (typeof isPartner !== 'undefined' && isPartner) { %>
+    <p class="lede">Partner access: Pro forever, and no fees on any job. Ever.</p>
+  <% } else if (typeof trialDays !== 'undefined' && trialDays > 0) { %>
+    <p class="lede">You have <strong><%= trialDays %> free Pro day<%= trialDays === 1 ? '' : 's' %></strong> left from a promo code.</p>
+  <% } %>
+  <p class="muted">Your fee per booked job: <strong><%= rateWords %></strong>. <a href="/pricing">How pricing works</a></p>
 </section>
 
 <% if (tier !== 'pro') { %>
@@ -12,14 +25,54 @@
     <ul class="check-list">
       <li>Pick a day and time for jobs</li>
       <li>Send bills and track what is paid</li>
-      <li>Stand out to more customers</li>
+      <li>Only 5% fee per booked job (instead of 10%)</li>
     </ul>
-    <p class="muted">Free is fine for getting started: you can make prices and message customers. The Pro plan unlocks booking days and sending bills.</p>
-    <p class="muted small">Online checkout is not turned on yet in this demo — ask us to turn on Pro for your account.</p>
-  </section>
-<% } else { %>
-  <section class="card">
-    <h2>You are on Pro</h2>
-    <p>You have everything: booking days and times, and sending bills. $39/month.</p>
+    <p class="muted small">Online checkout is not turned on yet — ask us to turn on Pro for your account.</p>
   </section>
 <% } %>
+
+<section class="card">
+  <h2>Card on file</h2>
+  <% if (hasCard) { %>
+    <p>&#10003; Card on file: <strong><%= card.brand %> ending in <%= card.last4 %></strong>
+    <% if (card.is_demo) { %><span class="muted small">(demo — no real card, can never charge)</span><% } %></p>
+    <p class="muted small">You can receive customer requests.</p>
+  <% } else { %>
+    <p class="error">No card on file. You cannot receive new job requests until you add one.</p>
+    <form action="/billing/card" method="post">
+      <button class="btn" type="submit">Add a card</button>
+    </form>
+  <% } %>
+  <% if (!stripeReady) { %>
+    <p class="muted small">Real card charging is not set up yet — the site owner needs to connect Stripe. Until then, confirmed fees are tracked as amounts due. A demo card here can never charge anyone.</p>
+  <% } %>
+</section>
+
+<section class="card">
+  <h2>Promo code</h2>
+  <form class="form form-inline" action="/billing/promo" method="post">
+    <label>Have a code? Type it here
+      <input type="text" name="code" placeholder="WELCOME10" style="text-transform:uppercase">
+    </label>
+    <button class="btn btn-secondary" type="submit">Use code</button>
+  </form>
+  <% if (typeof waivers !== 'undefined' && waivers.length) { %>
+    <% waivers.forEach(function (w) { %>
+      <% if (w.jobs_remaining > 0) { %><p class="success">You have <%= w.jobs_remaining %> no-fee job<%= w.jobs_remaining === 1 ? '' : 's' %> left from a promo code.</p><% } %>
+    <% }); %>
+  <% } %>
+</section>
+
+<section>
+  <h2>Fee history</h2>
+  <div class="pro-list">
+    <% (commissions || []).forEach(function (c) { %>
+      <div class="card">
+        <h3><%= c.job_title %></h3>
+        <p>Fee: <strong><%= money(c.amount_cents) %></strong> <span class="muted">(<%= Math.round(c.rate * 100) %>% of <%= money(c.base_amount_cents) %>)</span></p>
+        <p class="muted"><%= c.words %></p>
+      </div>
+    <% }); %>
+  </div>
+  <% if (!(commissions && commissions.length)) { %><p class="muted">No fees yet. Fees appear here when you and a customer agree on a day and time.</p><% } %>
+</section>
