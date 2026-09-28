@@ -1,0 +1,39 @@
+<%
+const statusWords = { new: 'New', estimate_sent: 'Price sent', accepted: 'Accepted', declined: 'Not going ahead', booked: 'Day and time picked', completed: 'Done', cancelled: 'Cancelled' };
+%>
+<h1>New jobs</h1>
+<p class="lede">People asking you for help. Newest first.</p>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <p class="error" role="alert"><%= error %></p>
+<% } %>
+
+<div class="pro-list">
+  <% (requests || []).forEach(function (r) { %>
+    <div class="card">
+      <h3><a href="/requests/<%= r.id %>"><%= r.title %></a></h3>
+      <% if (r.customer_name) { %><p class="muted">From: <%= r.customer_name %></p><% } %>
+      <% if (r.description) { %><p><%= r.description.length > 160 ? r.description.slice(0, 160) + '…' : r.description %></p><% } %>
+      <p>Status: <strong><%= statusWords[r.status] || r.status %></strong></p>
+      <% if (r.status === 'new') { %>
+        <details class="estimate-form">
+          <summary>Make a price</summary>
+          <form class="form" action="/requests/<%= r.id %>/estimate" method="post">
+            <label>Amount ($)
+              <input type="number" name="amount" min="1" step="0.01" required inputmode="decimal" value="<%= r.price_prefill || '' %>">
+            </label>
+            <label>Notes (optional)
+              <textarea name="notes" rows="2" placeholder="What is included in this price?"></textarea>
+            </label>
+            <input type="hidden" name="valid_days" value="7">
+            <button class="btn" type="submit">Send price</button>
+          </form>
+        </details>
+      <% } %>
+      <p><a href="/requests/<%= r.id %>">Open job &rarr;</a></p>
+    </div>
+  <% }); %>
+</div>
+<% if (!(requests && requests.length)) { %>
+  <p class="muted">No jobs yet. When someone asks you for help, it will show up here.</p>
+<% } %>
