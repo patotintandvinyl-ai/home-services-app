@@ -5,18 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><%= (typeof pageTitle !== 'undefined' && pageTitle) ? pageTitle + ' | Home Services' : 'Home Services' %></title>
 <link rel="stylesheet" href="/public/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="/">Home Services</a>
+    <a class="brand" href="/"><span class="brand-mark">H</span><span class="brand-name">Home Services</span></a>
     <nav class="main-nav" aria-label="Main">
       <a href="/">Home</a>
+      <a href="/pricing">Pricing</a>
       <% if (typeof user !== 'undefined' && user) { %>
         <a href="/dashboard">Dashboard</a>
+        <a class="bell" href="/notifications" aria-label="Notifications">
+          &#128276;
+          <% if (typeof unreadCount !== 'undefined' && unreadCount > 0) { %><span class="bell-count"><%= unreadCount %></span><% } %>
+        </a>
         <% if (user.role === 'pro') { %>
           <span class="tier-badge <%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'tier-pro' : 'tier-free' %>"><%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'Pro' : 'Free' %></span>
         <% } %>
+        <% if (typeof isAdmin !== 'undefined' && isAdmin) { %><a href="/admin/promos">Promos</a><% } %>
         <form class="inline-form" action="/logout" method="post">
           <button type="submit" class="link-button">Log out</button>
         </form>
@@ -31,8 +40,9 @@
 <%- body %>
 </main>
 <footer class="site-footer">
-  <div class="wrap">
-    <p>Home Services — find someone to help you, right in your neighborhood.</p>
+  <div class="wrap footer-inner">
+    <p><strong>Home Services</strong> — find someone to help you, right in your neighborhood.</p>
+    <p class="muted small"><a href="/pricing">Pricing</a> &middot; <a href="/search">Search pros</a></p>
   </div>
 </footer>
 </body>
