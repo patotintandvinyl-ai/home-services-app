@@ -1,0 +1,51 @@
+<h1>Edit your profile</h1>
+<p class="lede">This is what customers see about you. Keep it simple and true.</p>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <p class="error" role="alert"><%= error %></p>
+<% } %>
+
+<form class="form" action="/pro/profile" method="post">
+  <label>Business name
+    <input type="text" name="business_name" required value="<%= profile.business_name %>">
+  </label>
+  <label>A little about you
+    <textarea name="bio" rows="4" placeholder="What do you do? What makes you good at it?"><%= profile.bio %></textarea>
+  </label>
+  <label>Where do you work?
+    <input type="text" name="service_area" placeholder="Example: San Diego and nearby" value="<%= profile.service_area %>">
+  </label>
+  <label>Years of work
+    <input type="number" name="years_experience" min="0" value="<%= profile.years_experience %>">
+  </label>
+  <button class="btn" type="submit">Save</button>
+</form>
+
+<section>
+  <h2>Pictures of your work</h2>
+  <% if (typeof photos !== 'undefined' && photos && photos.length) { %>
+    <div class="photo-grid">
+      <% photos.forEach(function (ph) { %>
+        <figure class="photo">
+          <img src="/uploads/<%= ph.filename %>" alt="<%= ph.caption || 'Work photo' %>" loading="lazy">
+          <% if (ph.caption) { %><figcaption><%= ph.caption %></figcaption><% } %>
+          <form action="/pro/photos/<%= ph.id %>/delete" method="post">
+            <button class="btn btn-small btn-danger" type="submit">Delete</button>
+          </form>
+        </figure>
+      <% }); %>
+    </div>
+  <% } else { %>
+    <p class="muted">No pictures yet. Add some — pictures help people trust you.</p>
+  <% } %>
+  <h3>Add a picture</h3>
+  <form class="form" action="/pro/photos" method="post" enctype="multipart/form-data">
+    <label>Picture
+      <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif" required>
+    </label>
+    <label>What is in the picture? (optional)
+      <input type="text" name="caption" maxlength="120">
+    </label>
+    <button class="btn" type="submit">Upload picture</button>
+  </form>
+</section>
