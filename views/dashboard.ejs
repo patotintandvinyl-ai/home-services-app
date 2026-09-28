@@ -1,0 +1,60 @@
+<%
+const statusWords = { new: 'New', estimate_sent: 'Price sent', accepted: 'Accepted', declined: 'Not going ahead', booked: 'Day and time picked', completed: 'Done', cancelled: 'Cancelled' };
+%>
+<h1>Dashboard</h1>
+<p class="lede">Hi, <%= user.name %>.</p>
+
+<% if (user.role === 'customer') { %>
+  <section>
+    <h2>My jobs</h2>
+    <div class="pro-list">
+      <% (myRequests || []).forEach(function (r) { %>
+        <a class="card" href="<%= r.link || ('/requests/' + r.id) %>">
+          <h3><%= r.title %></h3>
+          <% if (r.pro_name) { %><p class="muted">Pro: <%= r.pro_name %></p><% } %>
+          <p>Status: <strong><%= statusWords[r.status] || r.status %></strong></p>
+          <span class="see-more">Open &rarr;</span>
+        </a>
+      <% }); %>
+    </div>
+    <% if (!(myRequests && myRequests.length)) { %>
+      <p class="muted">You have no jobs yet. <a href="/">Find someone to help you</a>.</p>
+    <% } %>
+  </section>
+<% } else { %>
+  <section>
+    <h2>Your plan</h2>
+    <p><span class="tier-badge <%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'tier-pro' : 'tier-free' %>"><%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'Pro' : 'Free' %></span></p>
+    <% if (!(typeof proTier !== 'undefined' && proTier === 'pro')) { %>
+      <p class="muted">The Pro plan ($39/month) unlocks booking days and sending bills. <a href="/billing">See the Pro plan</a></p>
+    <% } %>
+  </section>
+
+  <section>
+    <h2>New jobs</h2>
+    <div class="pro-list">
+      <% (inbox || []).slice(0, 5).forEach(function (r) { %>
+        <a class="card" href="/requests/<%= r.id %>">
+          <h3><%= r.title %></h3>
+          <% if (r.customer_name) { %><p class="muted">From: <%= r.customer_name %></p><% } %>
+          <p>Status: <strong><%= statusWords[r.status] || r.status %></strong></p>
+          <span class="see-more">Open &rarr;</span>
+        </a>
+      <% }); %>
+    </div>
+    <% if (!(inbox && inbox.length)) { %>
+      <p class="muted">No new jobs right now.</p>
+    <% } %>
+    <p><a class="btn btn-secondary" href="/pro/inbox">See all new jobs</a></p>
+  </section>
+
+  <section>
+    <h2>Your business</h2>
+    <div class="link-list">
+      <a href="/pro/profile/edit">Edit your profile and photos</a>
+      <a href="/pro/services">Your services</a>
+      <a href="/pro/inbox">New jobs inbox</a>
+      <a href="/billing">Billing and your plan</a>
+    </div>
+  </section>
+<% } %>
