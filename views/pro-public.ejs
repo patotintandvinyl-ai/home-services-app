@@ -1,0 +1,41 @@
+<p class="crumbs"><a href="/">&larr; Home</a></p>
+<h1><%= pro.business_name %></h1>
+<p class="meta-line">
+  <% if (pro.service_area) { %><span>Works in: <%= pro.service_area %></span><% } %>
+  <% if (pro.years_experience) { %><span><%= pro.years_experience %> years of work</span><% } %>
+</p>
+<% if (pro.bio) { %><p class="bio"><%= pro.bio %></p><% } %>
+
+<% if (photos && photos.length) { %>
+  <section>
+    <h2>Pictures of their work</h2>
+    <div class="photo-grid">
+      <% photos.forEach(function (ph) { %>
+        <figure class="photo">
+          <img src="/uploads/<%= ph.filename %>" alt="<%= ph.caption || ('Work photo from ' + pro.business_name) %>" loading="lazy">
+          <% if (ph.caption) { %><figcaption><%= ph.caption %></figcaption><% } %>
+        </figure>
+      <% }); %>
+    </div>
+  </section>
+<% } %>
+
+<section>
+  <h2>What they can do for you</h2>
+  <div class="pro-list">
+    <% (services || []).forEach(function (s) { %>
+      <div class="card">
+        <h3><%= s.title %></h3>
+        <% if (s.description) { %><p><%= s.description %></p><% } %>
+        <% if (s.price_hint) { %><p class="muted">Starts around <%= s.price_hint %></p><% } %>
+      </div>
+    <% }); %>
+  </div>
+  <% if (!(services && services.length)) { %>
+    <p class="muted">This pro has not listed services yet.</p>
+  <% } %>
+</section>
+
+<div class="cta-box">
+  <a class="btn btn-gold btn-big" href="/request/new?pro=<%= pro.id %>">Ask this pro for help</a>
+</div>
