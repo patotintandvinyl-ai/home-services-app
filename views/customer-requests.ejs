@@ -1,0 +1,19 @@
+<%
+const statusWords = { new: 'New', estimate_sent: 'Price sent', accepted: 'Accepted', declined: 'Not going ahead', booked: 'Day and time picked', completed: 'Done', cancelled: 'Cancelled' };
+%>
+<h1>My jobs</h1>
+<p class="lede">Everything you have asked for, in one place.</p>
+
+<div class="pro-list">
+  <% (myRequests || []).forEach(function (r) { %>
+    <a class="card" href="<%= r.link || ('/requests/' + r.id) %>">
+      <h3><%= r.title %></h3>
+      <% if (r.pro_name) { %><p class="muted">Pro: <%= r.pro_name %></p><% } %>
+      <p>Status: <strong><%= statusWords[r.status] || r.status %></strong></p>
+      <span class="see-more">Open &rarr;</span>
+    </a>
+  <% }); %>
+</div>
+<% if (!(myRequests && myRequests.length)) { %>
+  <p class="muted">You have no jobs yet. <a href="/">Find someone to help you</a>.</p>
+<% } %>
