@@ -2,14 +2,47 @@
 // Public pages: home, category, pro profile.
 const express = require('express');
 const { db } = require('../db');
+const reviews = require('../lib/reviews');
 
 const router = express.Router();
+
+function withRating(pro) {
+  const s = reviews.ratingSummary(pro.id);
+  return Object.assign({}, pro, { rating_average: s.average, rating_count: s.count });
+}
 
 // Home: category grid + 4 most recent pros.
 router.get('/', (req, res) => {
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
-  const featuredPros = db.prepare('SELECT * FROM pro_profiles ORDER BY id DESC LIMIT 4').all();
-  res.render('index', { pageTitle: 'Find someone to help', categories, featuredPros });
+  const featuredPros = db.prepare('SELECT * FROM pro_profiles ORDER BY id DESC LIMIT 4').all().map(withRating);
+  res.render('index', { pageTitle: 'Find someone to help', categories, featuredPros, q: '' });
+});
+
+// Plain-language pricing page. A child should understand it.
+router.get('/pricing', (req, res) => {
+  res.render('pricing', { pageTitle: 'How much does it cost?' });
+});
+
+// Full-text search across pro names, services, and categories.
+router.get('/search', (req, res) => {
+  const q = (req.query.q || '').trim();
+  let pros = [];
+  if (q) {
+    const like = '%' + q + '%';
+    const proIds = new Set();
+    db.prepare('SELECT id FROM pro_profiles WHERE business_name LIKE ? OR bio LIKE ? OR service_area LIKE ?')
+      .all(like, like, like).forEach((r) => proIds.add(r.id));
+    db.prepare(`SELECT DISTINCT s.pro_id FROM services s
+                JOIN categories c ON c.id = s.category_id
+                WHERE s.title LIKE ? OR s.description LIKE ? OR c.name LIKE ?`)
+      .all(like, like, like).forEach((r) => proIds.add(r.pro_id));
+    if (proIds.size) {
+      const placeholders = [...proIds].map(() => '?').join(',');
+      pros = db.prepare('SELECT * FROM pro_profiles WHERE id IN (' + placeholders + ') ORDER BY business_name')
+        .all(...proIds).map(withRating);
+    }
+  }
+  res.render('search', { pageTitle: q ? 'Results for "' + q + '"' : 'Search', q, pros });
 });
 
 // Category page: pros offering services in this category.
@@ -32,6 +65,9 @@ router.get('/c/:id', (req, res) => {
   );
   pros.forEach((p) => {
     p.services = svcByPro.all(p.id, category.id);
+    const s = reviews.ratingSummary(p.id);
+    p.rating_average = s.average;
+    p.rating_count = s.count;
   });
   res.render('category', { pageTitle: category.name, category, pros });
 });
@@ -51,7 +87,13 @@ router.get('/pro/:id', (req, res) => {
      WHERE s.pro_id = ? ORDER BY s.id`
   ).all(pro.id);
   const photos = db.prepare('SELECT * FROM photos WHERE pro_id = ? ORDER BY id').all(pro.id);
-  res.render('pro-public', { pageTitle: pro.business_name, pro, services, photos });
+  const rating = reviews.ratingSummary(pro.id);
+  const proReviews = reviews.forPro(pro.id);
+  res.render('pro-public', {
+    pageTitle: pro.business_name, pro, services, photos,
+    rating_average: rating.average, rating_count: rating.count,
+    proReviews, starsText: reviews.starsText
+  });
 });
 
 module.exports = router;
