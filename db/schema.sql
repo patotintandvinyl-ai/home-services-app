@@ -135,3 +135,103 @@ INSERT OR IGNORE INTO categories (id, name, plain_description, icon, sort_order)
 (18, 'DJs & Music', 'Music for your party', '🎧', 18),
 (19, 'Characters & Entertainers', 'Princesses, superheroes, and clowns', '🦸', 19),
 (20, 'Party Setup & Decor', 'Someone to set up and decorate', '🎈', 20);
+
+-- === Feature upgrade 2026-09-28: commissions, reviews, notifications, promo codes ===
+-- All idempotent (IF NOT EXISTS). Plain-language comments throughout.
+
+-- Money the pro owes the site for a booked job. Never charged silently:
+-- status 'pending' waits for the pro to press confirm.
+CREATE TABLE IF NOT EXISTS commissions(
+  id INTEGER PRIMARY KEY,
+  request_id INTEGER UNIQUE NOT NULL REFERENCES requests(id),
+  pro_id INTEGER NOT NULL REFERENCES pro_profiles(id),
+  customer_id INTEGER NOT NULL REFERENCES users(id),
+  base_amount_cents INTEGER NOT NULL DEFAULT 0,
+  rate REAL NOT NULL DEFAULT 0.10,
+  amount_cents INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK(status IN ('pending','confirmed','due','charged','waived','void')),
+  waived INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  confirmed_at TEXT,
+  note TEXT DEFAULT ''
+);
+
+-- Cards on file (Stripe-shaped). Real card details NEVER stored here —
+-- only Stripe's ids. is_demo=1 means the owner has not connected Stripe yet.
+CREATE TABLE IF NOT EXISTS pro_payment_methods(
+  id INTEGER PRIMARY KEY,
+  pro_id INTEGER NOT NULL REFERENCES pro_profiles(id),
+  stripe_customer_id TEXT DEFAULT '',
+  stripe_payment_method_id TEXT DEFAULT '',
+  brand TEXT DEFAULT '',
+  last4 TEXT DEFAULT '',
+  is_demo INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL
+);
+
+-- In-app notifications (the bell icon). Email/SMS try their best too.
+CREATE TABLE IF NOT EXISTS notifications(
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT DEFAULT '',
+  link TEXT DEFAULT '',
+  read_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+-- One review per finished job. Pros can read them, never change them.
+CREATE TABLE IF NOT EXISTS reviews(
+  id INTEGER PRIMARY KEY,
+  request_id INTEGER UNIQUE NOT NULL REFERENCES requests(id),
+  pro_id INTEGER NOT NULL REFERENCES pro_profiles(id),
+  customer_id INTEGER NOT NULL REFERENCES users(id),
+  rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+  text TEXT DEFAULT '',
+  created_at TEXT NOT NULL
+);
+
+-- Promo codes made by the site owner.
+-- kind: 'pro_trial' (value = free Pro days), 'commission_free' (value = jobs at 0%),
+--       'customer_credit' (value = cents of credit), 'partner' (lifetime Pro + 0% commission).
+-- max_redemptions NULL = unlimited. expires_at NULL = never expires.
+CREATE TABLE IF NOT EXISTS promo_codes(
+  id INTEGER PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  kind TEXT NOT NULL CHECK(kind IN ('pro_trial','commission_free','customer_credit','partner')),
+  value INTEGER NOT NULL DEFAULT 0,
+  max_redemptions INTEGER,
+  redeemed_count INTEGER NOT NULL DEFAULT 0,
+  expires_at TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL
+);
+
+-- Who used which code. One use per person per code.
+CREATE TABLE IF NOT EXISTS promo_redemptions(
+  id INTEGER PRIMARY KEY,
+  code_id INTEGER NOT NULL REFERENCES promo_codes(id),
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  redeemed_at TEXT NOT NULL,
+  UNIQUE(code_id, user_id)
+);
+
+-- Remaining 0%-commission jobs from a 'commission_free' code.
+CREATE TABLE IF NOT EXISTS promo_waivers(
+  id INTEGER PRIMARY KEY,
+  redemption_id INTEGER UNIQUE NOT NULL REFERENCES promo_redemptions(id),
+  pro_id INTEGER NOT NULL REFERENCES pro_profiles(id),
+  jobs_remaining INTEGER NOT NULL DEFAULT 0
+);
+
+-- Customer account credit from a 'customer_credit' code (display only for now).
+CREATE TABLE IF NOT EXISTS customer_credits(
+  id INTEGER PRIMARY KEY,
+  customer_id INTEGER NOT NULL REFERENCES users(id),
+  amount_cents INTEGER NOT NULL,
+  remaining_cents INTEGER NOT NULL,
+  source_code_id INTEGER REFERENCES promo_codes(id),
+  created_at TEXT NOT NULL
+);
