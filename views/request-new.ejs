@@ -1,0 +1,31 @@
+<h1>What do you need done?</h1>
+<p class="lede">Tell the pro what you need in your own words. It only takes a minute.</p>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <p class="error" role="alert"><%= error %></p>
+<% } %>
+
+<form class="form" action="/request" method="post">
+  <input type="hidden" name="pro_id" value="<%= proId %>">
+  <% if (typeof serviceId !== 'undefined' && serviceId) { %>
+    <input type="hidden" name="service_id" value="<%= serviceId %>">
+  <% } %>
+  <label>What kind of help?
+    <select name="category_id" required>
+      <option value="">Pick one…</option>
+      <% (categories || []).forEach(function (c) { %>
+        <option value="<%= c.id %>" <%= (typeof selectedCategory !== 'undefined' && String(selectedCategory) === String(c.id)) ? 'selected' : '' %>><%= c.name %></option>
+      <% }); %>
+    </select>
+  </label>
+  <label>Give it a short title
+    <input type="text" name="title" required maxlength="120" placeholder="Example: Tint my Honda Civic" value="<%= (typeof values !== 'undefined' && values.title) ? values.title : '' %>">
+  </label>
+  <label>Tell us in your own words
+    <textarea name="description" rows="5" required placeholder="What do you need? When? Anything the pro should know?"><%= (typeof values !== 'undefined' && values.description) ? values.description : '' %></textarea>
+  </label>
+  <label>Day you would like (optional)
+    <input type="date" name="preferred_date" value="<%= (typeof values !== 'undefined' && values.preferred_date) ? values.preferred_date : '' %>">
+  </label>
+  <button class="btn btn-gold" type="submit">Ask for help</button>
+</form>
