@@ -1,0 +1,48 @@
+<%
+const invoiceStatusWords = { draft: 'Draft', sent: 'Sent', paid: 'Paid' };
+const money = function (cents) { return '$' + (Number(cents || 0) / 100).toFixed(2); };
+%>
+<h1>Your bill</h1>
+
+<% if (typeof request_title !== 'undefined' && request_title) { %>
+  <p class="muted">For the job: <a href="/requests/<%= invoice.request_id %>"><%= request_title %></a></p>
+<% } %>
+
+<p>Status: <strong><%= invoiceStatusWords[invoice.status] || invoice.status %></strong></p>
+
+<table class="bill-table">
+  <thead>
+    <tr><th>What was done</th><th>How many</th><th>Price each</th><th>Total</th></tr>
+  </thead>
+  <tbody>
+    <% (items || []).forEach(function (it) { %>
+      <tr>
+        <td><%= it.description %></td>
+        <td><%= it.qty %></td>
+        <td><%= money(it.unit_price_cents) %></td>
+        <td><%= money(it.qty * it.unit_price_cents) %></td>
+      </tr>
+    <% }); %>
+  </tbody>
+  <tfoot>
+    <tr><td colspan="3"><strong>Total</strong></td><td><strong><%= money(total_cents) %></strong></td></tr>
+  </tfoot>
+</table>
+
+<% if (typeof isPro !== 'undefined' && isPro) { %>
+  <div class="button-row">
+    <% if (invoice.status === 'draft') { %>
+      <form action="/pro/invoices/<%= invoice.id %>/send" method="post">
+        <button class="btn" type="submit">Mark as sent</button>
+      </form>
+    <% } %>
+    <% if (invoice.status === 'sent') { %>
+      <form action="/pro/invoices/<%= invoice.id %>/paid" method="post">
+        <button class="btn btn-gold" type="submit">Mark as paid</button>
+      </form>
+    <% } %>
+    <% if (invoice.status === 'paid') { %>
+      <p class="notice">This bill is paid. Nice work!</p>
+    <% } %>
+  </div>
+<% } %>
