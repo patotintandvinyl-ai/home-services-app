@@ -1,0 +1,25 @@
+<h1>Billing</h1>
+
+<section>
+  <h2>Your plan right now</h2>
+  <p><span class="tier-badge <%= tier === 'pro' ? 'tier-pro' : 'tier-free' %>"><%= tier === 'pro' ? 'Pro' : 'Free' %></span></p>
+</section>
+
+<% if (tier !== 'pro') { %>
+  <section class="card plan-pitch">
+    <h2>Go Pro — $39/month</h2>
+    <p class="lede">For pros who want to do it all in one place.</p>
+    <ul class="check-list">
+      <li>Pick a day and time for jobs</li>
+      <li>Send bills and track what is paid</li>
+      <li>Stand out to more customers</li>
+    </ul>
+    <p class="muted">Free is fine for getting started: you can make prices and message customers. The Pro plan unlocks booking days and sending bills.</p>
+    <p class="muted small">Online checkout is not turned on yet in this demo — ask us to turn on Pro for your account.</p>
+  </section>
+<% } else { %>
+  <section class="card">
+    <h2>You are on Pro</h2>
+    <p>You have everything: booking days and times, and sending bills. $39/month.</p>
+  </section>
+<% } %>
