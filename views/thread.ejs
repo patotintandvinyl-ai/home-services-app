@@ -1,0 +1,139 @@
+<%
+const statusWords = { new: 'New', estimate_sent: 'Price sent', accepted: 'Accepted', declined: 'Not going ahead', booked: 'Day and time picked', completed: 'Done', cancelled: 'Cancelled' };
+const estimateStatusWords = { sent: 'Waiting for an answer', accepted: 'Accepted', declined: 'Not going ahead' };
+const invoiceStatusWords = { draft: 'Draft', sent: 'Sent', paid: 'Paid' };
+const money = function (cents) { return '$' + (Number(cents || 0) / 100).toFixed(2); };
+const fmtDate = function (iso) { if (!iso) return ''; try { return new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso; } };
+%>
+<p class="crumbs"><a href="/dashboard">&larr; Dashboard</a></p>
+<h1><%= request.title %></h1>
+<p class="meta-line">
+  <span>Status: <strong><%= statusWords[request.status] || request.status %></strong></span>
+  <% if (typeof otherParty !== 'undefined' && otherParty && otherParty.name) { %><span>Talking with: <strong><%= otherParty.name %></strong></span><% } %>
+  <% if (request.preferred_date) { %><span>Day you wanted: <%= request.preferred_date %></span><% } %>
+</p>
+<p><%= request.description %></p>
+
+<section>
+  <h2>Prices</h2>
+  <% if (estimates && estimates.length) { %>
+    <% estimates.forEach(function (e) { %>
+      <div class="card">
+        <p class="price"><%= money(e.amount_cents) %></p>
+        <% if (e.notes) { %><p><%= e.notes %></p><% } %>
+        <p class="muted">Good for <%= e.valid_days %> days · <%= estimateStatusWords[e.status] || e.status %></p>
+        <% if (isCustomerOwner && e.status === 'sent') { %>
+          <form class="inline-form" action="/requests/<%= request.id %>/estimates/<%= e.id %>/accept" method="post">
+            <button class="btn" type="submit">Accept this price</button>
+          </form>
+          <form class="inline-form" action="/requests/<%= request.id %>/estimates/<%= e.id %>/decline" method="post">
+            <button class="btn btn-secondary" type="submit">Say no thanks</button>
+          </form>
+        <% } %>
+      </div>
+    <% }); %>
+  <% } else { %>
+    <p class="muted">No prices yet.</p>
+  <% } %>
+  <% if (isProOwner) { %>
+    <h3>Make a price</h3>
+    <form class="form" action="/requests/<%= request.id %>/estimate" method="post">
+      <label>Amount ($)
+        <input type="number" name="amount" min="1" step="0.01" required inputmode="decimal">
+      </label>
+      <label>Notes (optional)
+        <textarea name="notes" rows="2" placeholder="What is included in this price?"></textarea>
+      </label>
+      <label>Good for (days)
+        <input type="number" name="valid_days" value="7" min="1" required>
+      </label>
+      <button class="btn" type="submit">Send price</button>
+    </form>
+  <% } %>
+</section>
+
+<section>
+  <h2>Pick a day and time</h2>
+  <% if (typeof booking !== 'undefined' && booking) { %>
+    <div class="card">
+      <p>Booked for: <strong><%= fmtDate(booking.scheduled_at) %></strong></p>
+      <% if (booking.notes) { %><p><%= booking.notes %></p><% } %>
+      <p class="muted">Status: <%= booking.status %></p>
+    </div>
+  <% } else if (isProOwner) { %>
+    <% if (typeof proTier !== 'undefined' && proTier === 'pro') { %>
+      <form class="form" action="/requests/<%= request.id %>/book" method="post">
+        <label>Day and time
+          <input type="datetime-local" name="scheduled_at" required>
+        </label>
+        <label>Notes (optional)
+          <textarea name="notes" rows="2"></textarea>
+        </label>
+        <button class="btn" type="submit">Book it</button>
+      </form>
+    <% } else { %>
+      <p class="notice">Booking a day and time needs the <a href="/billing">Pro plan ($39/month)</a>.</p>
+    <% } %>
+  <% } else { %>
+    <p class="muted">The pro will pick a day and time here.</p>
+  <% } %>
+</section>
+
+<section>
+  <h2>Your bill</h2>
+  <% if (typeof invoice !== 'undefined' && invoice) { %>
+    <div class="card">
+      <p>Status: <strong><%= invoiceStatusWords[invoice.status] || invoice.status %></strong></p>
+      <% if (typeof invoice.total_cents !== 'undefined') { %><p class="price"><%= money(invoice.total_cents) %></p><% } %>
+      <a class="btn btn-secondary" href="/pro/invoices/<%= invoice.id %>">See your bill</a>
+    </div>
+  <% } else if (isProOwner) { %>
+    <% if (typeof proTier !== 'undefined' && proTier === 'pro') { %>
+      <form class="form" action="/requests/<%= request.id %>/invoice" method="post">
+        <p class="muted">List what you did, how many, and the price for each.</p>
+        <% for (var i = 0; i < 3; i++) { %>
+          <div class="line-item">
+            <input type="text" name="description[]" placeholder="What you did" aria-label="What you did" <%= i === 0 ? 'required' : '' %>>
+            <input type="number" name="qty[]" value="1" min="1" aria-label="How many">
+            <input type="number" name="unit_price[]" step="0.01" min="0" placeholder="Price $" aria-label="Price in dollars" inputmode="decimal">
+          </div>
+        <% } %>
+        <button class="btn" type="submit">Make a bill</button>
+      </form>
+    <% } else { %>
+      <p class="notice">Sending bills needs the <a href="/billing">Pro plan ($39/month)</a>.</p>
+    <% } %>
+  <% } else { %>
+    <p class="muted">No bill yet.</p>
+  <% } %>
+</section>
+
+<section>
+  <h2>Messages</h2>
+  <div class="messages">
+    <% (messages || []).forEach(function (m) { %>
+      <div class="message <%= m.mine ? 'mine' : 'theirs' %>">
+        <p class="sender"><%= m.mine ? 'You' : m.sender_name %></p>
+        <p class="message-body"><%= m.body %></p>
+      </div>
+    <% }); %>
+    <% if (!(messages && messages.length)) { %>
+      <p class="muted">No messages yet. Say hello below.</p>
+    <% } %>
+  </div>
+  <form class="form" action="/requests/<%= request.id %>/message" method="post">
+    <label>Write a message
+      <textarea name="body" rows="3" required></textarea>
+    </label>
+    <button class="btn" type="submit">Send</button>
+  </form>
+</section>
+
+<% if (isProOwner && (request.status === 'new' || request.status === 'estimate_sent')) { %>
+  <section>
+    <h2>Can’t do this job?</h2>
+    <form action="/requests/<%= request.id %>/decline" method="post">
+      <button class="btn btn-secondary" type="submit">Turn down this job</button>
+    </form>
+  </section>
+<% } %>
