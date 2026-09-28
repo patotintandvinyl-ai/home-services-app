@@ -1,6 +1,10 @@
 <section class="hero">
   <h1>Find someone to help you</h1>
   <p class="lede">Real local pros for your home, your car, and your party. Pick what you need, ask for help, and get a clear price.</p>
+  <form class="search-form search-hero" action="/search" method="get">
+    <input type="search" name="q" placeholder="Try &quot;cleaning&quot;, &quot;tint&quot;, &quot;DJ&quot;…" aria-label="Search">
+    <button class="btn btn-gold" type="submit">Search</button>
+  </form>
   <% if (!(typeof user !== 'undefined' && user)) { %>
     <p><a class="btn btn-gold" href="/signup">Get started — it is free</a></p>
   <% } %>
@@ -25,6 +29,11 @@
     <% (featuredPros || []).forEach(function (p) { %>
       <a class="card pro-card" href="/pro/<%= p.id %>">
         <h3><%= p.business_name %></h3>
+        <% if (p.rating_count) { %>
+          <p class="rating-line">&#9733; <%= p.rating_average %> · <%= p.rating_count %> review<%= p.rating_count === 1 ? '' : 's' %></p>
+        <% } else { %>
+          <p class="muted small">No reviews yet</p>
+        <% } %>
         <% if (p.service_area) { %><p class="muted">Works in: <%= p.service_area %></p><% } %>
         <span class="see-more">See what they do &rarr;</span>
       </a>
