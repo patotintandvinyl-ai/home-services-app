@@ -90,6 +90,9 @@ seedPros.forEach((p) => {
   const proId = upsertProProfile(userId, p.business_name, p.bio, p.service_area, p.years);
   proIds[p.email] = proId;
   p.services.forEach((s) => seedService(proId, s.category_id, s.title, s.price_hint));
+  // Demo card on file so seed pros can receive requests (clearly demo-only).
+  const billing = require('../lib/billing');
+  billing.saveDemoCard(proId);
   console.log('  pro: ' + p.business_name + ' (' + p.email + ')');
 });
 
