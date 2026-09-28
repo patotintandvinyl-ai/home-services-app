@@ -1,0 +1,32 @@
+<%
+const statusWords = { new: 'New', estimate_sent: 'Price sent', accepted: 'Accepted', declined: 'Not going ahead', booked: 'Day and time picked', completed: 'Done', cancelled: 'Cancelled' };
+%>
+<p class="crumbs"><a href="/">&larr; All kinds of help</a></p>
+<h1><%= category.name %></h1>
+<p class="lede"><%= category.plain_description %></p>
+
+<div class="pro-list">
+  <% (pros || []).forEach(function (p) { %>
+    <a class="card pro-card" href="/pro/<%= p.id %>">
+      <h3><%= p.business_name %></h3>
+      <% if (p.bio) { %>
+        <p><%= p.bio.length > 140 ? p.bio.slice(0, 140) + '…' : p.bio %></p>
+      <% } %>
+      <p class="meta-line">
+        <% if (p.service_area) { %><span>Works in: <%= p.service_area %></span><% } %>
+        <% if (p.years_experience) { %><span><%= p.years_experience %> years of work</span><% } %>
+      </p>
+      <% if (p.services && p.services.length) { %>
+        <ul class="tag-list">
+          <% p.services.forEach(function (s) { %>
+            <li><%= s.title %></li>
+          <% }); %>
+        </ul>
+      <% } %>
+      <span class="see-more">See profile &rarr;</span>
+    </a>
+  <% }); %>
+</div>
+<% if (!(pros && pros.length)) { %>
+  <p class="muted">No pros here yet. Try another kind of help.</p>
+<% } %>
