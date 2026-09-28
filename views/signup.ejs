@@ -28,6 +28,9 @@
   <label>Phone (optional)
     <input type="tel" name="phone" autocomplete="tel" value="<%= (typeof values !== 'undefined' && values.phone) ? values.phone : '' %>">
   </label>
+  <label>Promo code (optional)
+    <input type="text" name="promo_code" placeholder="WELCOME10" style="text-transform:uppercase" value="<%= (typeof values !== 'undefined' && values.promo_code) ? values.promo_code : '' %>">
+  </label>
   <button class="btn" type="submit">Sign up</button>
 </form>
 
