@@ -3,6 +3,10 @@
 const express = require('express');
 const { db, now } = require('../db');
 const auth = require('../lib/auth');
+const billing = require('../lib/billing');
+const notify = require('../lib/notify');
+const reviews = require('../lib/reviews');
+const promo = require('../lib/promo');
 const shared = require('./requests');
 
 const router = express.Router();
@@ -69,6 +73,9 @@ router.post('/request', auth.requireLogin, (req, res) => {
   else if (!category) error = 'Please choose a category.';
   else if (!title) error = 'Please give your job a short title.';
   else if (!description) error = 'Please tell us in your own words what you need.';
+  else if (!billing.hasCardOnFile(pro.id)) {
+    error = 'This pro has not finished setting up payments yet, so they cannot take new jobs right now. Please pick another pro.';
+  }
 
   if (error) {
     return res.status(400).render('request-new', requestNewLocals({
@@ -85,7 +92,12 @@ router.post('/request', auth.requireLogin, (req, res) => {
        (customer_id, pro_id, service_id, category_id, title, description, preferred_date, status, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?)`
   ).run(user.id, pro.id, serviceId, category.id, title, description, preferredDate, now());
-  res.redirect('/requests/' + info.lastInsertRowid);
+  const requestId = Number(info.lastInsertRowid);
+  notify.notify(pro.user_id, 'request_new',
+    'New job request: ' + title,
+    user.name + ' needs help: ' + (description.length > 140 ? description.slice(0, 140) + '…' : description),
+    '/requests/' + requestId);
+  res.redirect('/requests/' + requestId);
 });
 
 // "My jobs" list.
@@ -131,6 +143,13 @@ router.post('/requests/:id/estimates/:eid/accept', auth.requireRole('customer'),
   if (!found) return;
   db.prepare("UPDATE estimates SET status = 'accepted' WHERE id = ?").run(found.estimate.id);
   db.prepare("UPDATE requests SET status = 'accepted' WHERE id = ?").run(found.request.id);
+  const proUser = db.prepare('SELECT user_id FROM pro_profiles WHERE id = ?').get(found.request.pro_id);
+  if (proUser) {
+    notify.notify(proUser.user_id, 'estimate_accepted',
+      'Your price was accepted: $' + (found.estimate.amount_cents / 100).toFixed(2),
+      'The customer accepted your price for "' + found.request.title + '". Time to pick a day.',
+      '/requests/' + found.request.id);
+  }
   res.redirect('/requests/' + found.request.id);
 });
 
@@ -141,6 +160,42 @@ router.post('/requests/:id/estimates/:eid/decline', auth.requireRole('customer')
   // Back to "new" so the pro can make another price.
   db.prepare("UPDATE requests SET status = 'new' WHERE id = ?").run(found.request.id);
   res.redirect('/requests/' + found.request.id);
+});
+
+// Leave a star rating + words after the job is done. One per job.
+router.post('/requests/:id/review', auth.requireRole('customer'), (req, res) => {
+  const user = auth.currentUser(req);
+  const check = reviews.canReview(req.params.id, user.id);
+  if (!check.ok) {
+    return shared.renderThread(res, req.params.id, {
+      viewer: user,
+      error: check.reason === 'already'
+        ? 'You already left a review for this job.'
+        : 'You can leave a review after the job is done.'
+    });
+  }
+  const request = check.request;
+  const review = reviews.addReview(request.id, request.pro_id, user.id, req.body.rating, req.body.text);
+  const proUser = db.prepare('SELECT user_id FROM pro_profiles WHERE id = ?').get(request.pro_id);
+  if (proUser) {
+    notify.notify(proUser.user_id, 'review_received',
+      'New ' + review.rating + '-star review',
+      user.name + ' reviewed "' + request.title + '".',
+      '/pro/' + request.pro_id);
+  }
+  res.redirect('/requests/' + request.id);
+});
+
+// Redeem a promo code (customers: account credit codes).
+router.post('/account/promo', auth.requireRole('customer'), (req, res) => {
+  const user = auth.currentUser(req);
+  const v = promo.validate(req.body.code, user.id);
+  if (!v.ok || v.code.kind !== 'customer_credit') {
+    return res.redirect('/dashboard?promo_error=' + encodeURIComponent(v.ok ? 'That code is for pros.' : v.reason));
+  }
+  const result = promo.redeem(req.body.code, user);
+  notify.notify(user.id, 'promo_redeemed', 'Promo code used', result.effect, '/dashboard');
+  res.redirect('/dashboard?promo_ok=' + encodeURIComponent(result.effect));
 });
 
 module.exports = router;
