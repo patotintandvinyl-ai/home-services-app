@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= (typeof pageTitle !== 'undefined' && pageTitle) ? pageTitle + ' | Home Services' : 'Home Services' %></title>
+<link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="/">Home Services</a>
+    <nav class="main-nav" aria-label="Main">
+      <a href="/">Home</a>
+      <% if (typeof user !== 'undefined' && user) { %>
+        <a href="/dashboard">Dashboard</a>
+        <% if (user.role === 'pro') { %>
+          <span class="tier-badge <%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'tier-pro' : 'tier-free' %>"><%= (typeof proTier !== 'undefined' && proTier === 'pro') ? 'Pro' : 'Free' %></span>
+        <% } %>
+        <form class="inline-form" action="/logout" method="post">
+          <button type="submit" class="link-button">Log out</button>
+        </form>
+      <% } else { %>
+        <a href="/login">Log in</a>
+        <a href="/signup" class="btn btn-small">Sign up</a>
+      <% } %>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+<%- body %>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Home Services — find someone to help you, right in your neighborhood.</p>
+  </div>
+</footer>
+</body>
+</html>
