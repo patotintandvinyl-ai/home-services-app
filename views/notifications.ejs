@@ -1,0 +1,17 @@
+<h1>Notifications</h1>
+<p class="muted"><%= emailNote %></p>
+
+<section>
+  <div class="pro-list">
+    <% (items || []).forEach(function (n) { %>
+      <div class="card notification-card">
+        <h3><%= n.title %></h3>
+        <% if (n.body) { %><p><%= n.body %></p><% } %>
+        <% if (n.link) { %><p><a class="see-more" href="<%= n.link %>">Open &rarr;</a></p><% } %>
+      </div>
+    <% }); %>
+  </div>
+  <% if (!(items && items.length)) { %>
+    <p class="muted">Nothing here yet. When something happens — a new job, a message, a price — you will see it here.</p>
+  <% } %>
+</section>
