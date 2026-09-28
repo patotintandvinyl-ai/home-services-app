@@ -129,6 +129,68 @@ const fmtDate = function (iso) { if (!iso) return ''; try { return new Date(iso)
   </form>
 </section>
 
+<% if (typeof commission !== 'undefined' && commission) { %>
+  <section class="card callout <%= commission.status === 'pending' ? 'callout-warn' : '' %>">
+    <h2>Site fee</h2>
+    <p>Fee: <strong><%= money(commission.amount_cents) %></strong> <span class="muted">(<%= Math.round(commission.rate * 100) %>% of <%= money(commission.base_amount_cents) %>)</span></p>
+    <p><%= commissionWords %></p>
+    <% if (isProOwner && commission.status === 'pending') { %>
+      <p class="muted small">You agreed on a day and time, so this fee applies. Press confirm and it will be <%= commission.amount_cents > 0 ? 'tracked' : 'recorded' %> — nothing is charged without your OK.</p>
+      <form action="/commissions/<%= commission.id %>/confirm" method="post">
+        <button class="btn btn-gold" type="submit">Confirm fee <%= money(commission.amount_cents) %></button>
+      </form>
+    <% } %>
+  </section>
+<% } %>
+
+<% if (typeof canReview !== 'undefined' && canReview && isCustomerOwner) { %>
+  <section class="card">
+    <h2>How was the job?</h2>
+    <form class="form" action="/requests/<%= request.id %>/review" method="post">
+      <label>Stars (1 to 5)
+        <select name="rating" required>
+          <option value="5">5 — Amazing</option>
+          <option value="4">4 — Good</option>
+          <option value="3">3 — OK</option>
+          <option value="2">2 — Not great</option>
+          <option value="1">1 — Bad</option>
+        </select>
+      </label>
+      <label>What did you think? (optional)
+        <textarea name="text" rows="3" placeholder="Tell others how it went"></textarea>
+      </label>
+      <button class="btn" type="submit">Leave review</button>
+    </form>
+  </section>
+<% } %>
+
+<% if (typeof review !== 'undefined' && review) { %>
+  <section class="card">
+    <h2>Review</h2>
+    <p class="rating-line"><%= '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating) %> <span class="muted"><%= review.rating %>/5</span></p>
+    <% if (review.text) { %><p><%= review.text %></p><% } %>
+  </section>
+<% } %>
+
+<% if (isProOwner && (request.status === 'accepted' || request.status === 'booked')) { %>
+  <section>
+    <h2>Job done?</h2>
+    <form action="/requests/<%= request.id %>/complete" method="post">
+      <button class="btn" type="submit">Mark job as done</button>
+    </form>
+  </section>
+<% } %>
+
+<% if ((isProOwner || isCustomerOwner) && !['completed', 'cancelled'].includes(request.status)) { %>
+  <section>
+    <h2>Cancel this job?</h2>
+    <p class="muted small">If the job is cancelled, any site fee is cancelled too.</p>
+    <form action="/requests/<%= request.id %>/cancel" method="post">
+      <button class="btn btn-secondary" type="submit">Cancel job</button>
+    </form>
+  </section>
+<% } %>
+
 <% if (isProOwner && (request.status === 'new' || request.status === 'estimate_sent')) { %>
   <section>
     <h2>Can’t do this job?</h2>
