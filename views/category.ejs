@@ -9,6 +9,11 @@ const statusWords = { new: 'New', estimate_sent: 'Price sent', accepted: 'Accept
   <% (pros || []).forEach(function (p) { %>
     <a class="card pro-card" href="/pro/<%= p.id %>">
       <h3><%= p.business_name %></h3>
+      <% if (p.rating_count) { %>
+        <p class="rating-line">&#9733; <%= p.rating_average %> · <%= p.rating_count %> review<%= p.rating_count === 1 ? '' : 's' %></p>
+      <% } else { %>
+        <p class="muted small">No reviews yet</p>
+      <% } %>
       <% if (p.bio) { %>
         <p><%= p.bio.length > 140 ? p.bio.slice(0, 140) + '…' : p.bio %></p>
       <% } %>
