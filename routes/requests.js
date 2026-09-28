@@ -5,6 +5,9 @@ const express = require('express');
 const { db, now } = require('../db');
 const auth = require('../lib/auth');
 const billing = require('../lib/billing');
+const commission = require('../lib/commission');
+const notify = require('../lib/notify');
+const reviews = require('../lib/reviews');
 
 const router = express.Router();
 
@@ -78,6 +81,11 @@ function renderThread(res, requestId, extra) {
   if (isCustomerOwner) otherParty = { name: request.business_name };
   else if (isProOwner) otherParty = { name: request.customer_name };
 
+  const commissionRow = commission.existingCommission(requestId);
+  const review = reviews.forRequest(requestId);
+  let reviewCheck = { ok: false };
+  if (viewer) reviewCheck = reviews.canReview(requestId, viewer.id);
+
   res.render('thread', {
     pageTitle: 'Job: ' + request.title,
     request,
@@ -89,6 +97,10 @@ function renderThread(res, requestId, extra) {
     isProOwner,
     proTier,
     otherParty,
+    commission: commissionRow,
+    commissionWords: commissionRow ? commission.statusWords(commissionRow) : null,
+    review,
+    canReview: reviewCheck.ok,
     error: extra.error || null
   });
 }
@@ -129,6 +141,31 @@ router.post('/requests/:id/message', auth.requireLogin, (req, res) => {
   db.prepare(
     'INSERT INTO messages (request_id, sender_id, body, created_at) VALUES (?, ?, ?, ?)'
   ).run(request.id, user.id, body, now());
+
+  // Tell the other person.
+  const otherId = user.id === request.customer_id ? request.pro_user_id : request.customer_id;
+  notify.notify(otherId, 'message_new', 'New message about: ' + request.title,
+    user.name + ' wrote: ' + (body.length > 120 ? body.slice(0, 120) + '…' : body),
+    '/requests/' + request.id);
+
+  // Did they just agree on a day and time? That is when the fee kicks in —
+  // but it always waits for the pro to press confirm. Never silent.
+  if (commission.detectAgreement(body)) {
+    const pro = db.prepare('SELECT * FROM pro_profiles WHERE id = ?').get(request.pro_id);
+    const pending = commission.maybeCreatePending(request, billing.getTier(pro));
+    if (pending && pending.status === 'pending') {
+      const waived = commission.applyWaiverIfAvailable(pro.id, pending);
+      const feeWords = '$' + (pending.amount_cents / 100).toFixed(2);
+      notify.notify(pro.user_id, 'commission_pending',
+        waived ? 'This job has no fee (promo code)' : 'A fee is waiting for your OK: ' + feeWords,
+        waived
+          ? 'Your promo code covered this job. Nothing to pay.'
+          : 'You and ' + request.customer_name + ' agreed on a day and time. Confirm the ' +
+            billing.commissionRateWords(billing.getTier(pro)) + ' fee (' + feeWords + ') on the job page. Nothing is charged until you confirm.',
+        '/requests/' + request.id);
+    }
+  }
+
   res.redirect('/requests/' + request.id);
 });
 
