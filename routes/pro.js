@@ -8,6 +8,8 @@ const multer = require('multer');
 const { db, now } = require('../db');
 const auth = require('../lib/auth');
 const billing = require('../lib/billing');
+const commission = require('../lib/commission');
+const notify = require('../lib/notify');
 const shared = require('./requests');
 
 const router = express.Router();
@@ -187,6 +189,10 @@ router.post('/requests/:id/estimate', requirePro, (req, res) => {
      VALUES (?, ?, ?, ?, ?, 'sent', ?)`
   ).run(found.request.id, found.pro.id, Math.round(dollars * 100), notes, isNaN(validDays) ? 7 : validDays, now());
   db.prepare("UPDATE requests SET status = 'estimate_sent' WHERE id = ?").run(found.request.id);
+  notify.notify(found.request.customer_id, 'estimate_sent',
+    'You got a price: $' + dollars.toFixed(2),
+    found.pro.business_name + ' sent a price for "' + found.request.title + '".',
+    '/requests/' + found.request.id);
   res.redirect('/requests/' + found.request.id);
 });
 
@@ -220,6 +226,10 @@ router.post('/requests/:id/book', requirePro, (req, res) => {
     ).run(found.request.id, found.pro.id, found.request.customer_id, scheduledAt, notes, now());
   }
   db.prepare("UPDATE requests SET status = 'booked' WHERE id = ?").run(found.request.id);
+  notify.notify(found.request.customer_id, 'booking_scheduled',
+    'Day and time picked for "' + found.request.title + '"',
+    found.pro.business_name + ' booked it for ' + scheduledAt + '.',
+    '/requests/' + found.request.id);
   res.redirect('/requests/' + found.request.id);
 });
 
@@ -301,6 +311,12 @@ router.post('/pro/invoices/:id/send', requirePro, (req, res) => {
   if (!invoice) return;
   if (invoice.status === 'draft') {
     db.prepare("UPDATE invoices SET status = 'sent' WHERE id = ?").run(invoice.id);
+    const request = shared.loadRequest(invoice.request_id);
+    if (request) {
+      notify.notify(request.customer_id, 'estimate_sent',
+        'You got a bill for "' + request.title + '"',
+        'Open the job to see it.', '/requests/' + request.id);
+    }
   }
   res.redirect('/pro/invoices/' + invoice.id);
 });
@@ -310,6 +326,62 @@ router.post('/pro/invoices/:id/paid', requirePro, (req, res) => {
   if (!invoice) return;
   db.prepare("UPDATE invoices SET status = 'paid' WHERE id = ?").run(invoice.id);
   res.redirect('/pro/invoices/' + invoice.id);
+});
+
+// "The job is done" — marks the job completed so the customer can review it.
+router.post('/requests/:id/complete', requirePro, (req, res) => {
+  const found = ownRequest(req, res);
+  if (!found) return;
+  db.prepare("UPDATE requests SET status = 'completed' WHERE id = ?").run(found.request.id);
+  db.prepare("UPDATE bookings SET status = 'done' WHERE request_id = ?").run(found.request.id);
+  notify.notify(found.request.customer_id, 'review_request',
+    'How was "' + found.request.title + '"?',
+    'The job is done. Leave a quick star rating for ' + found.pro.business_name + '.',
+    '/requests/' + found.request.id);
+  res.redirect('/requests/' + found.request.id);
+});
+
+// Cancel a job — either side can. A pending/due fee is voided: no job, no fee.
+router.post('/requests/:id/cancel', auth.requireLogin, (req, res) => {
+  const request = shared.loadRequest(req.params.id);
+  const user = auth.currentUser(req);
+  if (!request || !shared.isParty(req, request)) {
+    return res.status(403).render('error', {
+      pageTitle: 'Not allowed',
+      message: 'Sorry, this is not your job.'
+    });
+  }
+  db.prepare("UPDATE requests SET status = 'cancelled' WHERE id = ?").run(request.id);
+  db.prepare("UPDATE bookings SET status = 'cancelled' WHERE request_id = ?").run(request.id);
+  const voided = commission.voidCommission(request.id, 'Job cancelled — no fee');
+  const otherId = user.id === request.customer_id ? request.pro_user_id : request.customer_id;
+  notify.notify(otherId, 'commission_void',
+    'Job cancelled: "' + request.title + '"',
+    user.name + ' cancelled the job.' + (voided ? ' Any fee was cancelled too.' : ''),
+    '/requests/' + request.id);
+  res.redirect(user.role === 'pro' ? '/pro/inbox' : '/customer/requests');
+});
+
+// The pro confirms a pending fee. Tries a real card charge only when Stripe
+// is connected; otherwise the fee is honestly tracked as "due".
+router.post('/commissions/:id/confirm', requirePro, (req, res) => {
+  const pro = auth.currentPro(req);
+  const row = db.prepare('SELECT * FROM commissions WHERE id = ?').get(req.params.id);
+  if (!row || row.pro_id !== pro.id || row.status !== 'pending') {
+    return res.status(403).render('error', {
+      pageTitle: 'Not allowed',
+      message: 'Sorry, that fee cannot be confirmed.'
+    });
+  }
+  const done = commission.confirmCommission(row, (proId, cents, desc) => billing.chargeCard(proId, cents, desc));
+  notify.notify(pro.user_id, 'commission_confirmed',
+    done.status === 'charged' ? 'Fee charged: $' + (done.amount_cents / 100).toFixed(2)
+                              : 'Fee tracked as due: $' + (done.amount_cents / 100).toFixed(2),
+    done.status === 'charged'
+      ? 'Thanks — the fee for "' + done.request_id + '" is paid.'
+      : 'Card charging is not set up yet, so this fee is tracked as an amount you owe. It will charge automatically once the owner connects payments.',
+    '/billing');
+  res.redirect('/requests/' + row.request_id);
 });
 
 module.exports = router;
